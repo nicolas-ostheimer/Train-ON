@@ -1,7 +1,13 @@
 import { db } from './db'
-import type { Exercise, WorkoutTemplate, ScheduledWorkout, WorkoutLog } from './types'
+import type {
+  Exercise,
+  WorkoutTemplate,
+  ScheduledWorkout,
+  WorkoutLog,
+  TrainingType,
+} from './types'
 
-const EXPORT_VERSION = 1
+const EXPORT_VERSION = 2
 
 export interface BackupData {
   app: 'trial-training-planner'
@@ -11,15 +17,18 @@ export interface BackupData {
   templates: WorkoutTemplate[]
   scheduled: ScheduledWorkout[]
   logs: WorkoutLog[]
+  /** Seit V1.1 (version 2). Bei älteren Backups fehlend -> leeres Array. */
+  trainingTypes?: TrainingType[]
 }
 
 /** Sammelt alle Daten und erzeugt ein Backup-Objekt. */
 export async function buildBackup(): Promise<BackupData> {
-  const [exercises, templates, scheduled, logs] = await Promise.all([
+  const [exercises, templates, scheduled, logs, trainingTypes] = await Promise.all([
     db.exercises.toArray(),
     db.templates.toArray(),
     db.scheduled.toArray(),
     db.logs.toArray(),
+    db.trainingTypes.toArray(),
   ])
   return {
     app: 'trial-training-planner',
@@ -29,6 +38,7 @@ export async function buildBackup(): Promise<BackupData> {
     templates,
     scheduled,
     logs,
+    trainingTypes,
   }
 }
 
@@ -115,19 +125,24 @@ export async function importBackup(
   data: BackupData,
   mode: 'replace' | 'merge',
 ): Promise<void> {
-  await db.transaction('rw', db.exercises, db.templates, db.scheduled, db.logs, async () => {
+  await db.transaction('rw', db.exercises, db.templates, db.scheduled, db.logs, db.trainingTypes, async () => {
     if (mode === 'replace') {
       await Promise.all([
         db.exercises.clear(),
         db.templates.clear(),
         db.scheduled.clear(),
         db.logs.clear(),
+        db.trainingTypes.clear(),
       ])
     }
     await db.exercises.bulkPut(data.exercises)
     await db.templates.bulkPut(data.templates)
     await db.scheduled.bulkPut(data.scheduled)
     await db.logs.bulkPut(data.logs)
+    // Trainingsarten sind optional (ältere Backups haben das Feld nicht).
+    if (Array.isArray(data.trainingTypes)) {
+      await db.trainingTypes.bulkPut(data.trainingTypes)
+    }
   })
 }
 

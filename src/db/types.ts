@@ -47,8 +47,46 @@ export interface Exercise {
   equipment?: string
   notes?: string
   parameters: ExerciseParameter[] // Definition der flexiblen Parameter
+  /**
+   * Optionale Gruppierung für zukünftige Übungsvariationen (Feature 6, Vorbereitung).
+   * Übungen mit gleicher groupId gehören zusammen (z.B. "Squats" -> Full/Box/Pin).
+   * Wird aktuell NICHT über die UI gesetzt; Übungen funktionieren unabhängig davon.
+   */
+  groupId?: ID
+  groupName?: string
   createdAt: number
   updatedAt: number
+}
+
+/**
+ * Benutzerdefinierte Trainingsart / Trainingsfokus (Feature 1).
+ * Unabhängig von der Kategorie. Der Nutzer legt diese selbst an.
+ * Eine optionale Kategorie-Bindung erlaubt gefilterte Vorschläge, ist aber nicht zwingend.
+ */
+export interface TrainingType {
+  id: ID
+  name: string
+  category?: CategoryKey // optionale Zuordnung zu einer Kategorie
+  createdAt: number
+  updatedAt: number
+}
+
+/**
+ * Ein Satz einer Übung innerhalb eines Trainings (Feature 5).
+ * Enthält die konkreten Werte der Parameter für genau diesen Satz.
+ */
+export interface ExerciseSet {
+  id: ID
+  values: ParameterValue[]
+}
+
+/**
+ * Abschnitt einer Trainingsvorlage/-planung (Feature 4), z.B. Warm-up, Hauptteil.
+ * Übungen werden Abschnitten über WorkoutExercise.sectionId zugeordnet.
+ */
+export interface WorkoutSection {
+  id: ID
+  name: string
 }
 
 /**
@@ -76,7 +114,24 @@ export interface WorkoutExercise {
   description?: string
   equipment?: string
   notes?: string
-  values: ParameterValue[] // konkrete Zielwerte für diese Einheit
+  /**
+   * Zielwerte, wenn alle Sätze gleich sind bzw. kein Satzsystem genutzt wird.
+   * Bleibt aus Abwärtskompatibilität erhalten: Bestandsübungen ohne `sets`
+   * verwenden ausschließlich dieses Feld.
+   */
+  values: ParameterValue[]
+  /**
+   * Satzsystem (Feature 5), optional.
+   * setCount: Anzahl der Sätze (Standard 1, wenn nicht gesetzt).
+   * perSetParamIds: Parameter-IDs, die PRO SATZ variieren. Alle übrigen Parameter
+   *   sind für alle Sätze gleich und werden aus `values` übernommen.
+   * sets: konkrete Werte je Satz NUR für die perSet-Parameter.
+   */
+  setCount?: number
+  perSetParamIds?: ID[]
+  sets?: ExerciseSet[]
+  /** Zuordnung zu einem Abschnitt (Feature 4), optional. */
+  sectionId?: ID
 }
 
 /** Trainingseinheit-Vorlage (wiederverwendbar, beliebig oft planbar). */
@@ -84,8 +139,12 @@ export interface WorkoutTemplate {
   id: ID
   title: string
   category: CategoryKey
+  /** Optionale Trainingsart/Fokus (Feature 1). Verweist auf TrainingType.id. */
+  trainingTypeId?: ID
   description?: string
   notes?: string
+  /** Optionale Abschnitte (Feature 4). Leer/fehlend = ohne Abschnitte trainieren. */
+  sections?: WorkoutSection[]
   exercises: WorkoutExercise[]
   createdAt: number
   updatedAt: number
@@ -101,8 +160,12 @@ export interface ScheduledWorkout {
   templateId?: ID // Herkunft (nur informativ, optional)
   title: string
   category: CategoryKey
+  /** Optionale Trainingsart/Fokus (Feature 1), als eigene Kopie der Vorlage. */
+  trainingTypeId?: ID
   description?: string
   notes?: string
+  /** Optionale Abschnitte (Feature 4), eigene Kopie aus der Vorlage. */
+  sections?: WorkoutSection[]
   exercises: WorkoutExercise[] // eigene Kopie der Zielwerte
   date: string // ISO-Datum "YYYY-MM-DD"
   time?: string // "HH:MM" optional

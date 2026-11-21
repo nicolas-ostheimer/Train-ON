@@ -1,13 +1,18 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { CategoryBadge } from '../components/CategoryBadge'
-import { IconPlus, IconCalendar, IconCheck, IconSettings } from '../components/icons'
+import { Modal } from '../components/Modal'
+import { SchedulePicker } from '../components/SchedulePicker'
+import { IconPlus, IconCalendar, IconCheck, IconSettings, IconDumbbell } from '../components/icons'
 import { todayISO, formatLongDate } from '../lib/date'
 
 export default function Dashboard() {
   const nav = useNavigate()
   const today = todayISO()
+  const [chooseOpen, setChooseOpen] = useState(false)
+  const [schedulerOpen, setSchedulerOpen] = useState(false)
 
   const todaysWorkouts = useLiveQuery(
     () => db.scheduled.where('date').equals(today).toArray(),
@@ -18,6 +23,16 @@ export default function Dashboard() {
     (a, b) => (a.time ?? '99:99').localeCompare(b.time ?? '99:99'),
   )
   const doneCount = sorted.filter((s) => s.status === 'erledigt').length
+
+  const chooseExisting = () => {
+    setChooseOpen(false)
+    setSchedulerOpen(true)
+  }
+  const chooseNew = () => {
+    setChooseOpen(false)
+    // Neues Training anlegen und danach direkt für heute einplanen (planen=1).
+    nav('/vorlage/neu?planen=1')
+  }
 
   return (
     <div>
@@ -31,13 +46,10 @@ export default function Dashboard() {
         </button>
       </header>
 
-      {/* Schnellzugriffe */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <button className="btn-primary py-4" onClick={() => nav('/vorlage/neu')}>
-          <IconPlus width={20} height={20} /> Einheit erstellen
-        </button>
-        <button className="btn-secondary py-4" onClick={() => nav('/woche')}>
-          <IconCalendar width={20} height={20} /> Wochenplan
+      {/* Zentraler Schnellzugriff (Feature 3) */}
+      <div className="mb-6">
+        <button className="btn-primary w-full py-4 text-lg" onClick={() => setChooseOpen(true)}>
+          <IconPlus width={22} height={22} /> Training hinzufügen
         </button>
       </div>
 
@@ -56,9 +68,9 @@ export default function Dashboard() {
         <div className="card text-center py-10">
           <IconCalendar width={36} height={36} className="mx-auto mb-3 text-text-muted opacity-60" />
           <p className="text-text-secondary mb-1 font-medium">Heute kein Training geplant.</p>
-          <p className="text-sm text-text-muted mb-4">Plane eine Einheit im Wochenplan ein.</p>
-          <button className="btn-secondary" onClick={() => nav('/woche')}>
-            Zum Wochenplan
+          <p className="text-sm text-text-muted mb-4">Füge oben ein Training hinzu.</p>
+          <button className="btn-secondary" onClick={() => setChooseOpen(true)}>
+            <IconPlus width={18} height={18} /> Training hinzufügen
           </button>
         </div>
       ) : (
@@ -91,6 +103,36 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
+      )}
+
+      {/* Auswahl: bestehendes Training oder neues erstellen */}
+      <Modal open={chooseOpen} title="Training hinzufügen" onClose={() => setChooseOpen(false)}>
+        <div className="flex flex-col gap-3">
+          <button className="btn-secondary w-full py-4 justify-start" onClick={chooseExisting}>
+            <IconDumbbell width={20} height={20} />
+            <span className="text-left">
+              <span className="block font-semibold">Bestehendes Training verwenden</span>
+              <span className="block text-sm text-text-muted">Aus deinen Vorlagen für heute einplanen</span>
+            </span>
+          </button>
+          <button className="btn-secondary w-full py-4 justify-start" onClick={chooseNew}>
+            <IconPlus width={20} height={20} />
+            <span className="text-left">
+              <span className="block font-semibold">Neues Training erstellen</span>
+              <span className="block text-sm text-text-muted">Danach direkt für heute einplanen</span>
+            </span>
+          </button>
+        </div>
+      </Modal>
+
+      {/* Bestehende Vorlage für heute einplanen */}
+      {schedulerOpen && (
+        <SchedulePicker
+          open={schedulerOpen}
+          date={today}
+          onClose={() => setSchedulerOpen(false)}
+          onScheduled={() => setSchedulerOpen(false)}
+        />
       )}
     </div>
   )

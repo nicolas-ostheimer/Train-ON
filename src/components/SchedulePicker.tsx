@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { WorkoutTemplate } from '../db/types'
@@ -14,16 +14,23 @@ interface Props {
   date: string // Vorbelegtes Datum
   onClose: () => void
   onScheduled?: () => void
+  /** Optional direkt eine Vorlage vorauswählen (überspringt die Auswahlliste). */
+  preselect?: WorkoutTemplate
 }
 
 /** Wählt eine Vorlage und plant sie (als eigene Kopie) für ein Datum ein. */
-export function SchedulePicker({ open, date, onClose, onScheduled }: Props) {
+export function SchedulePicker({ open, date, onClose, onScheduled, preselect }: Props) {
   const toast = useToast()
   const nav = useNavigate()
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<WorkoutTemplate | null>(null)
+  const [selected, setSelected] = useState<WorkoutTemplate | null>(preselect ?? null)
   const [time, setTime] = useState('')
   const [duration, setDuration] = useState('')
+
+  // Vorauswahl übernehmen, wenn sich preselect ändert.
+  useEffect(() => {
+    if (preselect) setSelected(preselect)
+  }, [preselect])
 
   const templates = useLiveQuery(() => db.templates.orderBy('title').toArray(), [])
 

@@ -1,16 +1,18 @@
 import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
-import { IconDownload, IconUpload } from '../components/icons'
+import { IconDownload, IconUpload, IconChevronRight } from '../components/icons'
 import { exportToFile, readFileAsText, validateBackup, importBackup, type ValidationResult } from '../db/backup'
 
 export default function Settings() {
   const toast = useToast()
   const confirm = useConfirm()
+  const nav = useNavigate()
   const fileRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<ValidationResult | null>(null)
   const [busy, setBusy] = useState(false)
@@ -111,6 +113,17 @@ export default function Settings() {
       </div>
 
       <div className="card mb-4">
+        <h2 className="font-bold mb-3">Verwaltung</h2>
+        <button
+          className="btn-secondary w-full justify-between"
+          onClick={() => nav('/trainingsarten')}
+        >
+          <span>Trainingsarten verwalten</span>
+          <IconChevronRight width={18} height={18} />
+        </button>
+      </div>
+
+      <div className="card mb-4">
         <h2 className="font-bold mb-1">Datensicherung</h2>
         <p className="text-sm text-text-muted mb-4">
           Deine Daten liegen nur auf diesem Gerät. Exportiere regelmäßig ein Backup.
@@ -136,7 +149,7 @@ export default function Settings() {
       </div>
 
       <p className="text-xs text-text-muted text-center">
-        Trial Training Planner · Version 1.0 · Alle Daten lokal (IndexedDB)
+        Trial Training Planner · Version 1.1 · Alle Daten lokal (IndexedDB)
       </p>
 
       {/* Import-Bestätigung */}

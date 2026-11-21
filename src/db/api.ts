@@ -7,6 +7,8 @@ import type {
   ScheduledWorkout,
   WorkoutLog,
   ParameterValue,
+  TrainingType,
+  CategoryKey,
 } from './types'
 
 // ---------- Übungen ----------
@@ -34,6 +36,24 @@ export function getExercise(id: string) {
   return db.exercises.get(id)
 }
 
+/**
+ * Dupliziert eine Übung als neue, unabhängige Übung (Feature 2).
+ * Parameter bekommen neue IDs, damit die Kopie vollständig entkoppelt ist.
+ * Gibt die neue Übung zurück (zum direkten Öffnen im Editor).
+ */
+export async function duplicateExercise(id: string): Promise<Exercise | undefined> {
+  const ex = await db.exercises.get(id)
+  if (!ex) return undefined
+  const copy = deepClone(ex)
+  copy.id = newId()
+  copy.name = ex.name + ' (Kopie)'
+  copy.parameters = copy.parameters.map((p) => ({ ...p, id: newId() }))
+  copy.createdAt = now()
+  copy.updatedAt = now()
+  await db.exercises.add(copy)
+  return copy
+}
+
 // ---------- Hilfen: Übung -> WorkoutExercise ----------
 
 /** Erzeugt aus einer Übungsvorlage eine Trainings-Übung mit leeren Zielwerten. */
@@ -54,7 +74,57 @@ export function exerciseToWorkoutExercise(ex: Exercise): WorkoutExercise {
     equipment: ex.equipment,
     notes: ex.notes,
     values,
+    setCount: 1,
+    perSetParamIds: [],
+    sets: [],
   }
+}
+
+// ---------- Trainingsarten (Feature 1) ----------
+
+export async function createTrainingType(
+  name: string,
+  category?: CategoryKey,
+): Promise<TrainingType> {
+  const tt: TrainingType = {
+    id: newId(),
+    name: name.trim(),
+    category,
+    createdAt: now(),
+    updatedAt: now(),
+  }
+  await db.trainingTypes.add(tt)
+  return tt
+}
+
+export async function updateTrainingType(
+  id: string,
+  patch: Partial<Omit<TrainingType, 'id' | 'createdAt'>>,
+): Promise<void> {
+  await db.trainingTypes.update(id, { ...patch, updatedAt: now() })
+}
+
+export async function deleteTrainingType(id: string): Promise<void> {
+  // Verweise in Vorlagen/Planungen lösen, damit keine toten IDs zurückbleiben.
+  await db.transaction('rw', db.trainingTypes, db.templates, db.scheduled, async () => {
+    await db.trainingTypes.delete(id)
+    const tpls = await db.templates.where('id').notEqual('').toArray()
+    for (const t of tpls) {
+      if (t.trainingTypeId === id) {
+        await db.templates.update(t.id, { trainingTypeId: undefined, updatedAt: now() })
+      }
+    }
+    const scs = await db.scheduled.where('id').notEqual('').toArray()
+    for (const s of scs) {
+      if (s.trainingTypeId === id) {
+        await db.scheduled.update(s.id, { trainingTypeId: undefined, updatedAt: now() })
+      }
+    }
+  })
+}
+
+export function getTrainingType(id: string) {
+  return db.trainingTypes.get(id)
 }
 
 // ---------- Trainingsvorlagen ----------
@@ -112,8 +182,10 @@ export async function scheduleFromTemplate(
     templateId: template.id,
     title: template.title,
     category: template.category,
+    trainingTypeId: template.trainingTypeId,
     description: template.description,
     notes: template.notes,
+    sections: template.sections ? deepClone(template.sections) : undefined,
     exercises: deepClone(template.exercises).map((e) => ({ ...e, id: newId() })),
     date,
     time: opts?.time,

@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { PageHeader } from '../components/PageHeader'
 import { CategoryBadge } from '../components/CategoryBadge'
-import { ParameterValueEditor } from '../components/ParameterValueEditor'
+import { TrainingTypeBadge } from '../components/TrainingTypeBadge'
+import { SetEditor } from '../components/SetEditor'
+import { SetSummary } from '../components/SetSummary'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
-import type { ScheduledWorkout, ParameterValue } from '../db/types'
+import type { ScheduledWorkout, WorkoutExercise, ParameterValue } from '../db/types'
 import { getScheduled, updateScheduled, deleteScheduled, completeWorkout, reopenWorkout } from '../db/api'
 import { deepClone } from '../db/util'
 import { IconCheck, IconX, IconTrash, IconEdit } from '../components/icons'
@@ -22,9 +24,9 @@ export default function ScheduledDetail() {
   const [loading, setLoading] = useState(true)
   const [completeOpen, setCompleteOpen] = useState(false)
 
-  // Formularzustand für den Abschluss
+  // Formularzustand für den Abschluss: Ist-Werte je Übung als eigene WorkoutExercise-Kopie.
   const [note, setNote] = useState('')
-  const [actual, setActual] = useState<Record<string, ParameterValue[]>>({})
+  const [actual, setActual] = useState<Record<string, WorkoutExercise>>({})
 
   const load = async () => {
     if (!id) return
@@ -41,16 +43,22 @@ export default function ScheduledDetail() {
   const openComplete = () => {
     if (!sw) return
     setNote(sw.notes ?? '')
-    // Ist-Werte mit geplanten Werten vorbelegen
-    const init: Record<string, ParameterValue[]> = {}
-    for (const e of sw.exercises) init[e.id] = deepClone(e.values)
+    const init: Record<string, WorkoutExercise> = {}
+    for (const e of sw.exercises) init[e.id] = deepClone(e)
     setActual(init)
     setCompleteOpen(true)
   }
 
   const finish = async (outcome: 'erledigt' | 'nicht_absolviert') => {
     if (!sw) return
-    await completeWorkout(sw.id, outcome, note.trim() || undefined, actual)
+    // Ist-Werte als flache ParameterValue-Liste je Übung übergeben (Kompatibilität
+    // mit der bestehenden Protokoll-API). Satzwerte werden dabei zusammengefasst.
+    const actualByExercise: Record<string, ParameterValue[]> = {}
+    for (const e of sw.exercises) {
+      const a = actual[e.id]
+      actualByExercise[e.id] = a ? a.values : e.values
+    }
+    await completeWorkout(sw.id, outcome, note.trim() || undefined, actualByExercise)
     toast.show(outcome === 'erledigt' ? 'Training abgeschlossen.' : 'Als nicht absolviert markiert.', 'success')
     setCompleteOpen(false)
     await load()
@@ -72,11 +80,11 @@ export default function ScheduledDetail() {
     nav(-1)
   }
 
-  const savePlannedValues = async (weId: string, values: ParameterValue[]) => {
+  const savePlannedExercise = async (weId: string, next: WorkoutExercise) => {
     if (!sw) return
-    const next = sw.exercises.map((e) => (e.id === weId ? { ...e, values } : e))
-    setSw({ ...sw, exercises: next })
-    await updateScheduled(sw.id, { exercises: next })
+    const nextList = sw.exercises.map((e) => (e.id === weId ? next : e))
+    setSw({ ...sw, exercises: nextList })
+    await updateScheduled(sw.id, { exercises: nextList })
   }
 
   if (loading) return <p className="text-text-muted">Lädt…</p>
@@ -90,12 +98,61 @@ export default function ScheduledDetail() {
   const statusLabel =
     sw.status === 'erledigt' ? 'Erledigt' : sw.status === 'nicht_absolviert' ? 'Nicht absolviert' : 'Offen'
 
+  const sections = sw.sections ?? []
+
+  // Übung + Index-Nummerierung
+  const renderExercise = (e: WorkoutExercise, index: number) => (
+    <div key={e.id} className="card">
+      <div className="font-semibold mb-2">{index + 1}. {e.name}</div>
+      {sw.status === 'offen' ? (
+        <SetEditor we={e} onChange={(next) => savePlannedExercise(e.id, next)} />
+      ) : (
+        <SetSummary we={e} />
+      )}
+    </div>
+  )
+
+  const renderExerciseList = () => {
+    if (sections.length === 0) {
+      return sw.exercises.map((e, i) => renderExercise(e, i))
+    }
+    return (
+      <>
+        {sections.map((s) => {
+          const items = sw.exercises.filter((e) => e.sectionId === s.id)
+          if (items.length === 0) return null
+          return (
+            <div key={s.id}>
+              <div className="text-accent font-bold mb-2">{s.name}</div>
+              <div className="flex flex-col gap-3">
+                {items.map((e) => renderExercise(e, sw.exercises.indexOf(e)))}
+              </div>
+            </div>
+          )
+        })}
+        {(() => {
+          const rest = sw.exercises.filter((e) => !e.sectionId || !sections.some((s) => s.id === e.sectionId))
+          if (rest.length === 0) return null
+          return (
+            <div>
+              <div className="text-text-muted font-medium mb-2">Ohne Abschnitt</div>
+              <div className="flex flex-col gap-3">
+                {rest.map((e) => renderExercise(e, sw.exercises.indexOf(e)))}
+              </div>
+            </div>
+          )
+        })()}
+      </>
+    )
+  }
+
   return (
     <div>
       <PageHeader title={sw.title} back subtitle={formatLongDate(fromISODate(sw.date))} />
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <CategoryBadge category={sw.category} />
+        <TrainingTypeBadge id={sw.trainingTypeId} />
         <span className={`chip ${sw.status === 'erledigt' ? 'bg-[#1e3326] text-success' : sw.status === 'nicht_absolviert' ? 'bg-[#3a1e1e] text-danger' : 'bg-surface-2 text-text-secondary'}`}>
           {statusLabel}
         </span>
@@ -106,27 +163,9 @@ export default function ScheduledDetail() {
       {sw.description && <p className="text-text-secondary mb-4">{sw.description}</p>}
 
       <h2 className="text-lg font-bold mb-2">Übungen</h2>
-      <div className="flex flex-col gap-3 mb-6">
+      <div className="flex flex-col gap-4 mb-6">
         {sw.exercises.length === 0 && <p className="text-text-muted">Keine Übungen.</p>}
-        {sw.exercises.map((e, i) => (
-          <div key={e.id} className="card">
-            <div className="font-semibold mb-2">{i + 1}. {e.name}</div>
-            {sw.status === 'offen' ? (
-              <ParameterValueEditor values={e.values} onChange={(v) => savePlannedValues(e.id, v)} />
-            ) : e.values.length === 0 ? (
-              <p className="text-sm text-text-muted">Keine Parameter.</p>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {e.values.map((v) => (
-                  <div key={v.paramId} className="bg-surface-2 rounded-lg px-3 py-2">
-                    <div className="text-xs text-text-muted truncate">{v.name}{v.unit ? ` (${v.unit})` : ''}</div>
-                    <div className="font-medium">{v.value || '–'}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+        {renderExerciseList()}
       </div>
 
       {sw.notes && (
@@ -179,9 +218,9 @@ export default function ScheduledDetail() {
               {e.values.length === 0 ? (
                 <p className="text-sm text-text-muted">Keine Parameter.</p>
               ) : (
-                <ParameterValueEditor
-                  values={actual[e.id] ?? e.values}
-                  onChange={(v) => setActual((prev) => ({ ...prev, [e.id]: v }))}
+                <SetEditor
+                  we={actual[e.id] ?? e}
+                  onChange={(next) => setActual((prev) => ({ ...prev, [e.id]: next }))}
                 />
               )}
             </div>

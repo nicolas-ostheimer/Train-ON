@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { CATEGORIES, type CategoryKey } from '../db/types'
-import { deleteExercise, deleteTemplate, duplicateTemplate } from '../db/api'
+import { deleteExercise, deleteTemplate, duplicateTemplate, duplicateExercise } from '../db/api'
 import { PageHeader } from '../components/PageHeader'
 import { CategoryBadge } from '../components/CategoryBadge'
+import { TrainingTypeBadge } from '../components/TrainingTypeBadge'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
 import { IconPlus, IconSearch, IconEdit, IconTrash, IconCopy, IconDumbbell } from '../components/icons'
@@ -70,6 +71,15 @@ export default function Training() {
   const copyTemplate = async (id: string) => {
     await duplicateTemplate(id)
     toast.show('Vorlage kopiert.', 'success')
+  }
+
+  const copyExercise = async (id: string) => {
+    const copy = await duplicateExercise(id)
+    if (copy) {
+      toast.show('Übung kopiert.', 'success')
+      // Kopie direkt öffnen, damit Name/Eigenschaften sofort angepasst werden können.
+      nav(`/uebung/${copy.id}`)
+    }
   }
 
   return (
@@ -147,8 +157,9 @@ export default function Training() {
                 <div className="flex items-start justify-between gap-2">
                   <button className="text-left grow min-w-0" onClick={() => nav(`/vorlage/${t.id}`)}>
                     <h3 className="font-bold truncate">{t.title}</h3>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <CategoryBadge category={t.category} />
+                      <TrainingTypeBadge id={t.trainingTypeId} />
                       <span className="text-sm text-text-muted">
                         {t.exercises.length} Übung{t.exercises.length === 1 ? '' : 'en'}
                       </span>
@@ -206,6 +217,9 @@ export default function Training() {
                 <div className="flex gap-2 mt-3">
                   <button className="btn-secondary flex-1 py-2" onClick={() => nav(`/uebung/${e.id}`)}>
                     <IconEdit width={18} height={18} /> Bearbeiten
+                  </button>
+                  <button className="btn-icon bg-surface-2 border border-border text-text-secondary" onClick={() => copyExercise(e.id)} aria-label="Kopieren">
+                    <IconCopy width={18} height={18} />
                   </button>
                   <button className="btn-icon bg-surface-2 border border-border text-danger" onClick={() => removeExercise(e.id, e.name)} aria-label="Löschen">
                     <IconTrash width={18} height={18} />

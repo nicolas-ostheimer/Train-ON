@@ -37,3 +37,4 @@ summary.txt
 install-log*.txt
 npm-debug.txt
 trial-planner-dist.zip
+trial-planner-dist/
