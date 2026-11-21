@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-base text-text-primary font-sans antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  /* Safe-Area Unterstützung für moderne Smartphones */
+  :root {
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+
+  input,
+  textarea,
+  select {
+    @apply bg-surface-2 text-text-primary border border-border rounded-xl px-4 py-3 w-full outline-none;
+    font-size: 16px; /* verhindert Zoom auf iOS/Android beim Fokus */
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    @apply border-accent;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-text-muted;
+  }
+
+  label {
+    @apply text-sm text-text-secondary font-medium;
+  }
+
+  /* Scrollbar dezent */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold px-5 py-3 text-base transition-colors active:scale-[0.98] select-none disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-black hover:bg-accent-dark;
+  }
+  .btn-secondary {
+    @apply btn bg-surface-2 text-text-primary border border-border hover:bg-border;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white hover:opacity-90;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-text-secondary hover:bg-surface-2;
+  }
+  .btn-icon {
+    @apply inline-flex items-center justify-center rounded-xl w-11 h-11 transition-colors active:scale-95 select-none;
+  }
+
+  .card {
+    @apply bg-surface border border-border rounded-2xl p-4;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .field {
+    @apply flex flex-col gap-1.5;
+  }
+}
