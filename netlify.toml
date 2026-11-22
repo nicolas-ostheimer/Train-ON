@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA-Fallback: alle Routen auf index.html, damit react-router
+# auch bei direktem Aufruf tiefer Pfade (z. B. /historie) funktioniert.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

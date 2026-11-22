@@ -163,6 +163,19 @@ export async function importBackup(
   })
 }
 
+/**
+ * Lädt den eingefrorenen Musterdatensatz (Nicos echter Export) und ersetzt
+ * damit den vorhandenen Bestand. Wird vom "Musterdaten laden"-Button genutzt.
+ */
+export async function importDemoData(): Promise<void> {
+  const { demoData } = await import('../data/demoData')
+  const result = validateBackup(demoData)
+  if (!result.ok || !result.data) {
+    throw new Error(result.error ?? 'Musterdaten sind ungültig.')
+  }
+  await importBackup(result.data, 'replace')
+}
+
 /** Liest eine Datei als Text (für den Import-Dialog). */
 export function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

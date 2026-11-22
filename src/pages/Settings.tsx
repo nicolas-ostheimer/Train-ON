@@ -7,7 +7,7 @@ import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
 import { IconDownload, IconUpload, IconChevronRight, IconHistory } from '../components/icons'
-import { exportToFile, readFileAsText, validateBackup, importBackup, type ValidationResult } from '../db/backup'
+import { exportToFile, readFileAsText, validateBackup, importBackup, importDemoData, type ValidationResult } from '../db/backup'
 
 export default function Settings() {
   const toast = useToast()
@@ -26,6 +26,26 @@ export default function Settings() {
     ])
     return { ex, tp, sc, lg }
   }, [])
+
+  const loadDemo = async () => {
+    const ok = await confirm({
+      title: 'Musterdaten laden?',
+      message: 'Der mitgelieferte Beispiel-Trainingsplan ersetzt ALLE vorhandenen Daten vollständig. Dieser Schritt kann nicht rückgängig gemacht werden. Exportiere vorher ein Backup, falls du eigene Daten behalten willst.',
+      danger: true,
+      confirmLabel: 'Musterdaten laden',
+    })
+    if (!ok) return
+    setBusy(true)
+    try {
+      await importDemoData()
+      toast.show('Musterdaten geladen.', 'success')
+    } catch (e) {
+      console.error(e)
+      toast.show('Musterdaten konnten nicht geladen werden.', 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const doExport = async () => {
     try {
@@ -153,6 +173,9 @@ export default function Settings() {
           <button className="btn-secondary w-full" onClick={() => fileRef.current?.click()}>
             <IconUpload width={20} height={20} /> Daten importieren
           </button>
+          <button className="btn-secondary w-full" disabled={busy} onClick={loadDemo}>
+            <IconDownload width={20} height={20} /> Musterdaten laden (Demo)
+          </button>
           <input
             ref={fileRef}
             type="file"
@@ -167,7 +190,7 @@ export default function Settings() {
       </div>
 
       <p className="text-xs text-text-muted text-center">
-        Trial Training Planner · Version 1.2 · Alle Daten lokal (IndexedDB)
+        Trial Training Planner · Version 1.4 · Alle Daten lokal (IndexedDB)
       </p>
 
       {/* Import-Bestätigung */}

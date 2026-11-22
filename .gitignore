@@ -41,3 +41,6 @@ install-log*.txt
 npm-debug.txt
 trial-planner-dist.zip
 trial-planner-dist/
+
+# Roh-Backups (private Exportdateien, nicht ins Repo)
+trial-planner-backup-*.json
