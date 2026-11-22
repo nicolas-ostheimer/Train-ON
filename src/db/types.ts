@@ -186,6 +186,8 @@ export interface WorkoutLog {
   scheduledId: ID
   title: string
   category: CategoryKey
+  /** Optionale Trainingsart/Fokus zum Zeitpunkt des Abschlusses (Snapshot). */
+  trainingTypeId?: ID
   date: string
   completedAt: number
   outcome: 'erledigt' | 'nicht_absolviert'
@@ -193,7 +195,19 @@ export interface WorkoutLog {
   // Snapshot der geplanten Werte + optionale tatsächliche Werte
   exercises: {
     name: string
+    /**
+     * Flache Werte-Snapshots. Bleiben aus Abwärtskompatibilität erhalten und
+     * dienen als Fallback für Altprotokolle ohne Satz-Snapshot.
+     */
     planned: ParameterValue[]
     actual: ParameterValue[]
+    /**
+     * Vollständige Satz-Snapshots (Trainingshistorie-Feature), optional.
+     * Enthalten setCount/perSetParamIds/sets und erlauben die exakte
+     * Satz-für-Satz-Wiedergabe von Plan und Ist. Ältere Protokolle haben
+     * diese Felder nicht -> Anzeige fällt dann auf planned/actual zurück.
+     */
+    plannedExercise?: WorkoutExercise
+    actualExercise?: WorkoutExercise
   }[]
 }

@@ -8,7 +8,7 @@ import { SetSummary } from '../components/SetSummary'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
-import type { ScheduledWorkout, WorkoutExercise, ParameterValue } from '../db/types'
+import type { ScheduledWorkout, WorkoutExercise } from '../db/types'
 import { getScheduled, updateScheduled, deleteScheduled, completeWorkout, reopenWorkout } from '../db/api'
 import { deepClone } from '../db/util'
 import { IconCheck, IconX, IconTrash, IconEdit } from '../components/icons'
@@ -51,12 +51,11 @@ export default function ScheduledDetail() {
 
   const finish = async (outcome: 'erledigt' | 'nicht_absolviert') => {
     if (!sw) return
-    // Ist-Werte als flache ParameterValue-Liste je Übung übergeben (Kompatibilität
-    // mit der bestehenden Protokoll-API). Satzwerte werden dabei zusammengefasst.
-    const actualByExercise: Record<string, ParameterValue[]> = {}
+    // Vollständige Ist-Übung je Übung übergeben (inkl. Satzsystem), damit das
+    // Protokoll die Sätze exakt speichert. Fallback auf die geplante Übung.
+    const actualByExercise: Record<string, WorkoutExercise> = {}
     for (const e of sw.exercises) {
-      const a = actual[e.id]
-      actualByExercise[e.id] = a ? a.values : e.values
+      actualByExercise[e.id] = actual[e.id] ?? e
     }
     await completeWorkout(sw.id, outcome, note.trim() || undefined, actualByExercise)
     toast.show(outcome === 'erledigt' ? 'Training abgeschlossen.' : 'Als nicht absolviert markiert.', 'success')

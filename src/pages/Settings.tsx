@@ -6,7 +6,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
-import { IconDownload, IconUpload, IconChevronRight } from '../components/icons'
+import { IconDownload, IconUpload, IconChevronRight, IconHistory } from '../components/icons'
 import { exportToFile, readFileAsText, validateBackup, importBackup, type ValidationResult } from '../db/backup'
 
 export default function Settings() {
@@ -114,13 +114,24 @@ export default function Settings() {
 
       <div className="card mb-4">
         <h2 className="font-bold mb-3">Verwaltung</h2>
-        <button
-          className="btn-secondary w-full justify-between"
-          onClick={() => nav('/trainingsarten')}
-        >
-          <span>Trainingsarten verwalten</span>
-          <IconChevronRight width={18} height={18} />
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            className="btn-secondary w-full justify-between"
+            onClick={() => nav('/historie')}
+          >
+            <span className="flex items-center gap-2">
+              <IconHistory width={18} height={18} /> Trainingshistorie
+            </span>
+            <IconChevronRight width={18} height={18} />
+          </button>
+          <button
+            className="btn-secondary w-full justify-between"
+            onClick={() => nav('/trainingsarten')}
+          >
+            <span>Trainingsarten verwalten</span>
+            <IconChevronRight width={18} height={18} />
+          </button>
+        </div>
       </div>
 
       <div className="card mb-4">
@@ -149,7 +160,7 @@ export default function Settings() {
       </div>
 
       <p className="text-xs text-text-muted text-center">
-        Trial Training Planner · Version 1.1 · Alle Daten lokal (IndexedDB)
+        Trial Training Planner · Version 1.2 · Alle Daten lokal (IndexedDB)
       </p>
 
       {/* Import-Bestätigung */}

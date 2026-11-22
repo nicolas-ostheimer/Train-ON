@@ -240,7 +240,7 @@ export async function completeWorkout(
   scheduledId: string,
   outcome: 'erledigt' | 'nicht_absolviert',
   note: string | undefined,
-  actualByExercise: Record<string, ParameterValue[]>,
+  actualByExercise: Record<string, WorkoutExercise>,
 ): Promise<WorkoutLog> {
   const sw = await db.scheduled.get(scheduledId)
   if (!sw) throw new Error('Geplante Einheit nicht gefunden.')
@@ -250,15 +250,24 @@ export async function completeWorkout(
     scheduledId,
     title: sw.title,
     category: sw.category,
+    trainingTypeId: sw.trainingTypeId,
     date: sw.date,
     completedAt: now(),
     outcome,
     note,
-    exercises: sw.exercises.map((e) => ({
-      name: e.name,
-      planned: deepClone(e.values),
-      actual: deepClone(actualByExercise[e.id] ?? e.values),
-    })),
+    exercises: sw.exercises.map((e) => {
+      // Vollständige Ist-Übung (inkl. Satzsystem); Fallback auf die geplante Übung.
+      const actualEx = actualByExercise[e.id] ?? e
+      return {
+        name: e.name,
+        // Flache Fallback-Snapshots für Abwärtskompatibilität.
+        planned: deepClone(e.values),
+        actual: deepClone(actualEx.values),
+        // Vollständige Satz-Snapshots (neues Feature).
+        plannedExercise: deepClone(e),
+        actualExercise: deepClone(actualEx),
+      }
+    }),
   }
 
   await db.transaction('rw', db.scheduled, db.logs, async () => {
@@ -291,4 +300,13 @@ export async function reopenWorkout(scheduledId: string): Promise<void> {
 
 export function getLog(id: string) {
   return db.logs.get(id)
+}
+
+/**
+ * Alle Protokolle für die Trainingshistorie, neueste zuerst
+ * (sortiert nach Abschlusszeitpunkt).
+ */
+export async function listLogs(): Promise<WorkoutLog[]> {
+  const logs = await db.logs.toArray()
+  return logs.sort((a, b) => b.completedAt - a.completedAt)
 }

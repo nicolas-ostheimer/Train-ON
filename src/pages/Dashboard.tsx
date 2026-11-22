@@ -5,7 +5,7 @@ import { db } from '../db/db'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { Modal } from '../components/Modal'
 import { SchedulePicker } from '../components/SchedulePicker'
-import { IconPlus, IconCalendar, IconCheck, IconSettings, IconDumbbell } from '../components/icons'
+import { IconPlus, IconCalendar, IconCheck, IconSettings, IconDumbbell, IconHistory } from '../components/icons'
 import { todayISO, formatLongDate } from '../lib/date'
 
 export default function Dashboard() {
@@ -41,9 +41,14 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold">Hi Nico!</h1>
           <p className="text-text-secondary mt-1 capitalize">{formatLongDate(new Date())}</p>
         </div>
-        <button className="btn-icon text-text-secondary hover:bg-surface-2 mt-1" onClick={() => nav('/einstellungen')} aria-label="Einstellungen">
-          <IconSettings />
-        </button>
+        <div className="flex items-center gap-1 mt-1">
+          <button className="btn-icon text-text-secondary hover:bg-surface-2" onClick={() => nav('/historie')} aria-label="Trainingshistorie">
+            <IconHistory />
+          </button>
+          <button className="btn-icon text-text-secondary hover:bg-surface-2" onClick={() => nav('/einstellungen')} aria-label="Einstellungen">
+            <IconSettings />
+          </button>
+        </div>
       </header>
 
       {/* Zentraler Schnellzugriff (Feature 3) */}
