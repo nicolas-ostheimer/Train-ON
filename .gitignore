@@ -29,6 +29,9 @@ dev-dist
 setup.ps1
 build.ps1
 gitcheckpoint.ps1
+gitpush.ps1
+gitinfo.txt
+auth.txt
 *-log.txt
 *-result.txt
 *.tsbuildinfo
