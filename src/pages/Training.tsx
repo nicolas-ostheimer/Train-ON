@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { CATEGORIES, type CategoryKey } from '../db/types'
+import { type CategoryKey } from '../db/types'
 import { deleteExercise, deleteTemplate, duplicateTemplate, duplicateExercise } from '../db/api'
+import { useCategories } from '../lib/categories'
 import { PageHeader } from '../components/PageHeader'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { TrainingTypeBadge } from '../components/TrainingTypeBadge'
@@ -17,6 +18,7 @@ export default function Training() {
   const nav = useNavigate()
   const toast = useToast()
   const confirm = useConfirm()
+  const categories = useCategories()
   const [tab, setTab] = useState<Tab>('vorlagen')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<CategoryKey | 'alle'>('alle')
@@ -127,7 +129,7 @@ export default function Training() {
         >
           Alle
         </button>
-        {CATEGORIES.map((c) => (
+        {(categories ?? []).map((c) => (
           <button
             key={c.key}
             className={`chip shrink-0 ${filter === c.key ? 'bg-accent text-black' : 'bg-surface-2 text-text-secondary'}`}

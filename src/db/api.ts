@@ -9,7 +9,9 @@ import type {
   ParameterValue,
   TrainingType,
   CategoryKey,
+  Category,
 } from './types'
+import { UNCATEGORIZED_KEY } from './types'
 
 // ---------- Übungen ----------
 
@@ -64,6 +66,9 @@ export function exerciseToWorkoutExercise(ex: Exercise): WorkoutExercise {
     type: p.type,
     unit: p.unit,
     value: p.defaultValue ?? '',
+    // Auswahloptionen mitkopieren, damit beim Training ein echtes Dropdown
+    // angezeigt werden kann (nur relevant bei type === 'select').
+    options: p.type === 'select' ? (p.options ? [...p.options] : []) : undefined,
   }))
   return {
     id: newId(),
@@ -125,6 +130,107 @@ export async function deleteTrainingType(id: string): Promise<void> {
 
 export function getTrainingType(id: string) {
   return db.trainingTypes.get(id)
+}
+
+// ---------- Trainingskategorien (benutzerdefiniert) ----------
+
+/** Alle Kategorien, nach Reihenfolge sortiert. */
+export async function listCategories(): Promise<Category[]> {
+  const cats = await db.categories.toArray()
+  return cats.sort((a, b) => a.order - b.order || a.label.localeCompare(b.label))
+}
+
+export function getCategory(key: string) {
+  return db.categories.get(key)
+}
+
+/** Erzeugt einen eindeutigen, stabilen Key aus einem Namen. */
+async function uniqueCategoryKey(label: string): Promise<string> {
+  const base =
+    label
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'kategorie'
+  let key = base
+  let i = 2
+  // eslint-disable-next-line no-await-in-loop
+  while (await db.categories.get(key)) {
+    key = `${base}-${i++}`
+  }
+  return key
+}
+
+export async function createCategory(label: string, color?: string): Promise<Category> {
+  const trimmed = label.trim()
+  if (!trimmed) throw new Error('Name darf nicht leer sein.')
+  const key = await uniqueCategoryKey(trimmed)
+  const max = await db.categories.toArray()
+  const order = max.reduce((m, c) => Math.max(m, c.order), -1) + 1
+  const cat: Category = { key, label: trimmed, color: color || undefined, order }
+  await db.categories.add(cat)
+  return cat
+}
+
+export async function updateCategory(
+  key: string,
+  patch: Partial<Omit<Category, 'key'>>,
+): Promise<void> {
+  await db.categories.update(key, patch)
+}
+
+/** Zählt, wie oft eine Kategorie aktuell verwendet wird. */
+export async function countCategoryUsage(key: string): Promise<{
+  exercises: number
+  templates: number
+  scheduled: number
+  logs: number
+  total: number
+}> {
+  const [exercises, templates, scheduled, logs] = await Promise.all([
+    db.exercises.where('category').equals(key).count(),
+    db.templates.where('category').equals(key).count(),
+    db.scheduled.where('category').equals(key).count(),
+    db.logs.filter((l) => l.category === key).count(),
+  ])
+  return {
+    exercises,
+    templates,
+    scheduled,
+    logs,
+    total: exercises + templates + scheduled + logs,
+  }
+}
+
+/**
+ * Löscht eine Kategorie sicher. Vorhandene Einträge werden NICHT gelöscht,
+ * sondern auf `reassignTo` umgehängt (Standard: 'sonstiges'). Existiert das
+ * Ziel nicht, wird es nicht erzwungen – die Einträge behalten dann den alten
+ * Key als Freitext (keine Datenlöschung).
+ */
+export async function deleteCategory(key: string, reassignTo: string = UNCATEGORIZED_KEY): Promise<void> {
+  await db.transaction(
+    'rw',
+    [db.categories, db.exercises, db.templates, db.scheduled, db.logs, db.trainingTypes],
+    async () => {
+      const target = reassignTo && reassignTo !== key ? reassignTo : UNCATEGORIZED_KEY
+      // Betroffene Einträge umhängen (nur das category-Feld ändern).
+      const exs = await db.exercises.where('category').equals(key).toArray()
+      for (const e of exs) await db.exercises.update(e.id, { category: target, updatedAt: now() })
+      const tpls = await db.templates.where('category').equals(key).toArray()
+      for (const t of tpls) await db.templates.update(t.id, { category: target, updatedAt: now() })
+      const scs = await db.scheduled.where('category').equals(key).toArray()
+      for (const s of scs) await db.scheduled.update(s.id, { category: target, updatedAt: now() })
+      const lgs = await db.logs.filter((l) => l.category === key).toArray()
+      for (const l of lgs) await db.logs.update(l.id, { category: target })
+      // Optionale Kategorie-Bindung von Trainingsarten lösen.
+      const tts = await db.trainingTypes.filter((t) => t.category === key).toArray()
+      for (const t of tts) await db.trainingTypes.update(t.id, { category: undefined, updatedAt: now() })
+
+      await db.categories.delete(key)
+    },
+  )
 }
 
 // ---------- Trainingsvorlagen ----------

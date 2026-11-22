@@ -11,6 +11,7 @@ import ScheduledDetail from './pages/ScheduledDetail'
 import Settings from './pages/Settings'
 import TrainingTypes from './pages/TrainingTypes'
 import History from './pages/History'
+import Categories from './pages/Categories'
 
 function BottomNav() {
   const item =
@@ -58,6 +59,7 @@ export default function App() {
               <Route path="/einstellungen" element={<Settings />} />
               <Route path="/trainingsarten" element={<TrainingTypes />} />
               <Route path="/historie" element={<History />} />
+              <Route path="/kategorien" element={<Categories />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>

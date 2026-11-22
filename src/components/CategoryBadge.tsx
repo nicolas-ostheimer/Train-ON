@@ -1,13 +1,25 @@
-import { categoryLabel, type CategoryKey } from '../db/types'
+import { useCategories, labelFor, colorFor } from '../lib/categories'
 
-const colors: Record<string, string> = {
-  trial: 'bg-accent-soft text-accent',
-  gym: 'bg-[#1e2b3a] text-[#6fb3ff]',
-  ausdauer: 'bg-[#1e3326] text-[#5fd089]',
-  sonstiges: 'bg-surface-2 text-text-secondary',
-}
+/**
+ * Zeigt eine Trainingskategorie als Chip. Label und Farbe stammen aus der
+ * zentralen Kategorien-Tabelle (benutzerdefiniert). Existiert der Key nicht
+ * mehr (z.B. nach Löschung), wird der Key selbst dezent angezeigt.
+ */
+export function CategoryBadge({ category }: { category: string }) {
+  const cats = useCategories()
+  const label = labelFor(cats, category)
+  const color = colorFor(cats, category)
 
-export function CategoryBadge({ category }: { category: CategoryKey | string }) {
-  const cls = colors[category] ?? colors.sonstiges
-  return <span className={`chip ${cls}`}>{categoryLabel(category)}</span>
+  if (color) {
+    // Farbige Variante: getönter Hintergrund + farbiger Text, passend zum Dark-Design.
+    return (
+      <span
+        className="chip"
+        style={{ backgroundColor: `${color}22`, color }}
+      >
+        {label}
+      </span>
+    )
+  }
+  return <span className="chip bg-surface-2 text-text-secondary">{label}</span>
 }

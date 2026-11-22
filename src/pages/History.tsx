@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { CATEGORIES, type CategoryKey } from '../db/types'
+import { type CategoryKey } from '../db/types'
+import { useCategories } from '../lib/categories'
 import { PageHeader } from '../components/PageHeader'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { TrainingTypeBadge } from '../components/TrainingTypeBadge'
@@ -10,6 +11,7 @@ import { IconCheck, IconX, IconHistory } from '../components/icons'
 import { fromISODate, formatLongDate } from '../lib/date'
 
 export default function History() {
+  const categories = useCategories()
   const [filter, setFilter] = useState<CategoryKey | 'alle'>('alle')
   const [openId, setOpenId] = useState<string | null>(null)
 
@@ -36,7 +38,7 @@ export default function History() {
         >
           Alle
         </button>
-        {CATEGORIES.map((c) => (
+        {(categories ?? []).map((c) => (
           <button
             key={c.key}
             className={`chip shrink-0 ${filter === c.key ? 'bg-accent text-black' : 'bg-surface-2 text-text-secondary'}`}

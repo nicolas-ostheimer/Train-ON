@@ -5,7 +5,9 @@ import type {
   ScheduledWorkout,
   WorkoutLog,
   TrainingType,
+  Category,
 } from './types'
+import { DEFAULT_CATEGORIES } from './types'
 
 /**
  * Lokale IndexedDB-Datenbank über Dexie.
@@ -23,6 +25,7 @@ export class TrialDB extends Dexie {
   scheduled!: Table<ScheduledWorkout, string>
   logs!: Table<WorkoutLog, string>
   trainingTypes!: Table<TrainingType, string>
+  categories!: Table<Category, string>
 
   constructor() {
     super('TrialTrainingPlanner')
@@ -42,7 +45,40 @@ export class TrialDB extends Dexie {
       logs: 'id, scheduledId, date',
       trainingTypes: 'id, name, category',
     })
+    // V1.3: neue Tabelle für benutzerdefinierte Trainingskategorien.
+    // `key` ist der Primärschlüssel und entspricht den bisherigen, in den
+    // Daten verwendeten Kategorie-Keys. Bestehende Stores bleiben unverändert.
+    this.version(3)
+      .stores({
+        exercises: 'id, name, category, updatedAt',
+        templates: 'id, title, category, updatedAt',
+        scheduled: 'id, date, status, templateId',
+        logs: 'id, scheduledId, date',
+        trainingTypes: 'id, name, category',
+        categories: 'key, order',
+      })
+      .upgrade(async (tx) => {
+        // Einmaliger Seed der Standardkategorien beim Upgrade einer
+        // bestehenden Installation, falls noch keine vorhanden sind.
+        const table = tx.table('categories')
+        const count = await table.count()
+        if (count === 0) {
+          await table.bulkAdd(DEFAULT_CATEGORIES)
+        }
+      })
   }
 }
 
 export const db = new TrialDB()
+
+/**
+ * Stellt sicher, dass immer mindestens die Standardkategorien existieren.
+ * Greift bei Neuinstallationen (frische DB ohne upgrade-Hook) und ist
+ * ansonsten ein No-Op. Wird beim App-Start aufgerufen.
+ */
+export async function ensureCategoriesSeeded(): Promise<void> {
+  const count = await db.categories.count()
+  if (count === 0) {
+    await db.categories.bulkAdd(DEFAULT_CATEGORIES)
+  }
+}

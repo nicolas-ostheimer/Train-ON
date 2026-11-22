@@ -25,11 +25,18 @@ export function ParameterValueEditor({ values, onChange }: Props) {
             {v.unit ? ` (${v.unit})` : ''}
           </label>
           {v.type === 'select' ? (
-            <input
-              value={v.value}
-              onChange={(e) => update(v.paramId, e.target.value)}
-              placeholder="Wert"
-            />
+            (() => {
+              const opts = v.options ?? []
+              const extra = v.value && !opts.includes(v.value) ? [v.value] : []
+              return (
+                <select value={v.value} onChange={(e) => update(v.paramId, e.target.value)}>
+                  <option value="">— bitte wählen —</option>
+                  {[...extra, ...opts].map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              )
+            })()
           ) : (
             <input
               type={v.type === 'number' ? 'number' : 'text'}

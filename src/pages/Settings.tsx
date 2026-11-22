@@ -126,6 +126,13 @@ export default function Settings() {
           </button>
           <button
             className="btn-secondary w-full justify-between"
+            onClick={() => nav('/kategorien')}
+          >
+            <span>Kategorien verwalten</span>
+            <IconChevronRight width={18} height={18} />
+          </button>
+          <button
+            className="btn-secondary w-full justify-between"
             onClick={() => nav('/trainingsarten')}
           >
             <span>Trainingsarten verwalten</span>

@@ -6,25 +6,30 @@ import { ExercisePicker } from '../components/ExercisePicker'
 import { TrainingTypeSelect } from '../components/TrainingTypeSelect'
 import { SchedulePicker } from '../components/SchedulePicker'
 import {
-  CATEGORIES,
   type CategoryKey,
   type WorkoutExercise,
   type WorkoutSection,
   type WorkoutTemplate,
 } from '../db/types'
 import { createTemplate, getTemplate, updateTemplate, exerciseToWorkoutExercise } from '../db/api'
+import { useCategories } from '../lib/categories'
 import { newId } from '../db/util'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
 import { IconPlus, IconTrash, IconArrowUp, IconArrowDown } from '../components/icons'
 
 // Standard-Abschnittsvorschläge je Kategorie (Feature 4). Nur Vorschläge,
-// jederzeit frei anpassbar. Keine erfundenen Trial-Techniken.
-const SECTION_SUGGESTIONS: Record<CategoryKey, string[]> = {
+// jederzeit frei anpassbar. Da Kategorien jetzt benutzerdefiniert sind,
+// gibt es pro bekanntem Key einen Vorschlag und sonst einen Fallback.
+const SECTION_SUGGESTIONS: Record<string, string[]> = {
   trial: ['Warm-up', 'Technik', 'Hauptteil', 'Cooldown'],
   gym: ['Warm-up', 'Hauptteil', 'Cooldown'],
   ausdauer: ['Warm-up', 'Hauptteil', 'Cooldown'],
   sonstiges: ['Warm-up', 'Hauptteil', 'Cooldown'],
+}
+const DEFAULT_SECTION_SUGGESTION = ['Warm-up', 'Hauptteil', 'Cooldown']
+function sectionSuggestionFor(key: string): string[] {
+  return SECTION_SUGGESTIONS[key] ?? DEFAULT_SECTION_SUGGESTION
 }
 
 export default function TemplateEditor() {
@@ -36,8 +41,9 @@ export default function TemplateEditor() {
   const isEdit = !!id
 
   const [loading, setLoading] = useState(isEdit)
+  const categories = useCategories()
   const [title, setTitle] = useState('')
-  const [category, setCategory] = useState<CategoryKey>('trial')
+  const [category, setCategory] = useState<CategoryKey>('')
   const [trainingTypeId, setTrainingTypeId] = useState<string | undefined>(undefined)
   const [description, setDescription] = useState('')
   const [notes, setNotes] = useState('')
@@ -68,6 +74,13 @@ export default function TemplateEditor() {
     })
     return () => { active = false }
   }, [id])
+
+  // Beim Neuanlegen: erste verfügbare Kategorie vorbelegen, sobald geladen.
+  useEffect(() => {
+    if (!isEdit && !category && categories && categories.length > 0) {
+      setCategory(categories[0].key)
+    }
+  }, [isEdit, category, categories])
 
   const setWorkoutExercise = (weId: string, next: WorkoutExercise) => {
     setExercises((list) => list.map((e) => (e.id === weId ? next : e)))
@@ -229,8 +242,11 @@ export default function TemplateEditor() {
 
         <div className="field">
           <label>Kategorie</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value as CategoryKey)}>
-            {CATEGORIES.map((c) => (
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            {category && !(categories ?? []).some((c) => c.key === category) && (
+              <option value={category}>{category}</option>
+            )}
+            {(categories ?? []).map((c) => (
               <option key={c.key} value={c.key}>{c.label}</option>
             ))}
           </select>
@@ -280,7 +296,7 @@ export default function TemplateEditor() {
               <IconPlus width={16} height={16} /> Abschnitt
             </button>
             {sections.length === 0 &&
-              SECTION_SUGGESTIONS[category].map((name) => (
+              sectionSuggestionFor(category).map((name) => (
                 <button
                   key={name}
                   className="chip bg-surface-2 text-text-secondary"

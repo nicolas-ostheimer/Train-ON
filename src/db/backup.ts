@@ -5,9 +5,11 @@ import type {
   ScheduledWorkout,
   WorkoutLog,
   TrainingType,
+  Category,
 } from './types'
+import { DEFAULT_CATEGORIES } from './types'
 
-const EXPORT_VERSION = 2
+const EXPORT_VERSION = 3
 
 export interface BackupData {
   app: 'trial-training-planner'
@@ -19,16 +21,19 @@ export interface BackupData {
   logs: WorkoutLog[]
   /** Seit V1.1 (version 2). Bei älteren Backups fehlend -> leeres Array. */
   trainingTypes?: TrainingType[]
+  /** Seit V1.3 (version 3). Bei älteren Backups fehlend -> Standard-Seed greift. */
+  categories?: Category[]
 }
 
 /** Sammelt alle Daten und erzeugt ein Backup-Objekt. */
 export async function buildBackup(): Promise<BackupData> {
-  const [exercises, templates, scheduled, logs, trainingTypes] = await Promise.all([
+  const [exercises, templates, scheduled, logs, trainingTypes, categories] = await Promise.all([
     db.exercises.toArray(),
     db.templates.toArray(),
     db.scheduled.toArray(),
     db.logs.toArray(),
     db.trainingTypes.toArray(),
+    db.categories.toArray(),
   ])
   return {
     app: 'trial-training-planner',
@@ -39,6 +44,7 @@ export async function buildBackup(): Promise<BackupData> {
     scheduled,
     logs,
     trainingTypes,
+    categories,
   }
 }
 
@@ -125,7 +131,7 @@ export async function importBackup(
   data: BackupData,
   mode: 'replace' | 'merge',
 ): Promise<void> {
-  await db.transaction('rw', db.exercises, db.templates, db.scheduled, db.logs, db.trainingTypes, async () => {
+  await db.transaction('rw', [db.exercises, db.templates, db.scheduled, db.logs, db.trainingTypes, db.categories], async () => {
     if (mode === 'replace') {
       await Promise.all([
         db.exercises.clear(),
@@ -133,6 +139,7 @@ export async function importBackup(
         db.scheduled.clear(),
         db.logs.clear(),
         db.trainingTypes.clear(),
+        db.categories.clear(),
       ])
     }
     await db.exercises.bulkPut(data.exercises)
@@ -142,6 +149,16 @@ export async function importBackup(
     // Trainingsarten sind optional (ältere Backups haben das Feld nicht).
     if (Array.isArray(data.trainingTypes)) {
       await db.trainingTypes.bulkPut(data.trainingTypes)
+    }
+    // Kategorien optional (Backups < version 3). Fehlen sie, bleibt der
+    // vorhandene bzw. geseedete Bestand erhalten.
+    if (Array.isArray(data.categories) && data.categories.length > 0) {
+      await db.categories.bulkPut(data.categories)
+    }
+    // Nach einem Replace ohne Kategorien die Standardkategorien wiederherstellen,
+    // damit nie ein leerer Kategorienbestand entsteht.
+    if ((await db.categories.count()) === 0) {
+      await db.categories.bulkAdd(DEFAULT_CATEGORIES)
     }
   })
 }

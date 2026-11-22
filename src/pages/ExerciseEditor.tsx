@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { PageHeader } from '../components/PageHeader'
 import { ParameterDefEditor } from '../components/ParameterDefEditor'
-import { CATEGORIES, type CategoryKey, type Exercise, type ExerciseParameter } from '../db/types'
+import { type CategoryKey, type Exercise, type ExerciseParameter } from '../db/types'
 import { createExercise, getExercise, updateExercise } from '../db/api'
+import { useCategories } from '../lib/categories'
 import { useToast } from '../components/Toast'
 
 export default function ExerciseEditor() {
@@ -12,9 +13,10 @@ export default function ExerciseEditor() {
   const toast = useToast()
   const isEdit = !!id
 
+  const categories = useCategories()
   const [loading, setLoading] = useState(isEdit)
   const [name, setName] = useState('')
-  const [category, setCategory] = useState<CategoryKey>('trial')
+  const [category, setCategory] = useState<CategoryKey>('')
   const [description, setDescription] = useState('')
   const [equipment, setEquipment] = useState('')
   const [notes, setNotes] = useState('')
@@ -40,6 +42,13 @@ export default function ExerciseEditor() {
       active = false
     }
   }, [id])
+
+  // Beim Neuanlegen: erste verfügbare Kategorie vorbelegen, sobald geladen.
+  useEffect(() => {
+    if (!isEdit && !category && categories && categories.length > 0) {
+      setCategory(categories[0].key)
+    }
+  }, [isEdit, category, categories])
 
   const save = async () => {
     if (!name.trim()) {
@@ -94,8 +103,12 @@ export default function ExerciseEditor() {
 
         <div className="field">
           <label>Kategorie</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value as CategoryKey)}>
-            {CATEGORIES.map((c) => (
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            {/* Falls die gespeicherte Kategorie nicht mehr existiert, bleibt sie wählbar. */}
+            {category && !(categories ?? []).some((c) => c.key === category) && (
+              <option value={category}>{category}</option>
+            )}
+            {(categories ?? []).map((c) => (
               <option key={c.key} value={c.key}>
                 {c.label}
               </option>

@@ -3,24 +3,44 @@
 
 export type ID = string
 
-/** Fest vorgegebene Kategorien (erweiterbar). */
-export type CategoryKey = 'trial' | 'gym' | 'ausdauer' | 'sonstiges'
+/**
+ * Schlüssel einer Trainingskategorie.
+ * Früher ein fester Union-Typ, jetzt ein freier String: Kategorien sind
+ * benutzerdefiniert und werden in der DB verwaltet (Tabelle `categories`).
+ * Bestehende Daten nutzen weiterhin die alten Keys ('trial', 'gym', …),
+ * daher bleibt dieser Typ string-kompatibel und erfordert keine Datenmigration.
+ */
+export type CategoryKey = string
 
-export interface ExerciseCategory {
-  key: CategoryKey
+/**
+ * Benutzerdefinierte Trainingskategorie (in der DB gespeichert).
+ * `key` ist der stabile Bezeichner, auf den Übungen/Vorlagen/Trainings
+ * über ihr `category`-Feld verweisen. Für die Standardkategorien sind das
+ * die historischen Keys ('trial', 'gym', 'ausdauer', 'sonstiges').
+ */
+export interface Category {
+  key: string
   label: string
+  /** Optionale Akzentfarbe (Hex), fügt sich dezent ins Dark-Design ein. */
+  color?: string
+  /** Sortierreihenfolge in Listen/Filtern. */
+  order: number
 }
 
-export const CATEGORIES: ExerciseCategory[] = [
-  { key: 'trial', label: 'Trial' },
-  { key: 'gym', label: 'Gym' },
-  { key: 'ausdauer', label: 'Ausdauer' },
-  { key: 'sonstiges', label: 'Sonstiges' },
+/** Fallback-Key für Einträge ohne gültige Kategorie (wird nicht erzwungen). */
+export const UNCATEGORIZED_KEY = 'sonstiges'
+
+/**
+ * Standardkategorien für Neuinstallationen bzw. als einmaliger Seed.
+ * Behalten exakt die historischen Keys, damit bestehende Daten weiter passen.
+ * Sie sind NICHT fest – der Nutzer kann sie umbenennen, färben oder löschen.
+ */
+export const DEFAULT_CATEGORIES: Category[] = [
+  { key: 'trial', label: 'Trial', color: '#ff7a1a', order: 0 },
+  { key: 'gym', label: 'Gym', color: '#6fb3ff', order: 1 },
+  { key: 'ausdauer', label: 'Ausdauer', color: '#5fd089', order: 2 },
+  { key: 'sonstiges', label: 'Sonstiges', order: 3 },
 ]
-
-export function categoryLabel(key: string): string {
-  return CATEGORIES.find((c) => c.key === key)?.label ?? 'Sonstiges'
-}
 
 /** Eingabetyp eines frei definierbaren Trainingsparameters. */
 export type ParameterType = 'number' | 'text' | 'select'
@@ -100,6 +120,13 @@ export interface ParameterValue {
   type: ParameterType
   unit?: string
   value: string
+  /**
+   * Auswahloptionen (nur bei type === 'select'), als Kopie aus der
+   * Parameterdefinition. Dadurch kann beim Training ein echtes Dropdown
+   * angezeigt werden, auch unabhängig von späteren Vorlagenänderungen.
+   * Bei Altdaten fehlend -> Eingabe fällt dann auf ein Freitextfeld zurück.
+   */
+  options?: string[]
 }
 
 /**

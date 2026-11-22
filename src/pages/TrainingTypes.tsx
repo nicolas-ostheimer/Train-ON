@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { PageHeader } from '../components/PageHeader'
-import { CATEGORIES, categoryLabel, type CategoryKey } from '../db/types'
+import { type CategoryKey } from '../db/types'
+import { useCategories, labelFor } from '../lib/categories'
 import { createTrainingType, updateTrainingType, deleteTrainingType } from '../db/api'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
@@ -12,6 +13,7 @@ import { IconPlus, IconTrash, IconEdit, IconCheck, IconX } from '../components/i
 export default function TrainingTypes() {
   const toast = useToast()
   const confirm = useConfirm()
+  const categories = useCategories()
   const [name, setName] = useState('')
   const [category, setCategory] = useState<CategoryKey | ''>('')
   const [editId, setEditId] = useState<string | null>(null)
@@ -67,9 +69,9 @@ export default function TrainingTypes() {
           </div>
           <div className="field">
             <label>Kategorie (optional)</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value as CategoryKey | '')}>
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
               <option value="">— alle —</option>
-              {CATEGORIES.map((c) => (
+              {(categories ?? []).map((c) => (
                 <option key={c.key} value={c.key}>{c.label}</option>
               ))}
             </select>
@@ -113,7 +115,7 @@ export default function TrainingTypes() {
                   <div className="grow min-w-0">
                     <div className="font-semibold truncate">{t.name}</div>
                     {t.category && (
-                      <div className="text-xs text-text-muted">{categoryLabel(t.category)}</div>
+                      <div className="text-xs text-text-muted">{labelFor(categories, t.category)}</div>
                     )}
                   </div>
                   <button

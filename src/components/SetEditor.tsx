@@ -35,6 +35,37 @@ export function SetEditor({ we, onChange }: Props) {
   const inputType = (type: string) => (type === 'number' ? 'number' : 'text')
   const inputMode = (type: string) => (type === 'number' ? 'decimal' : 'text')
 
+  /**
+   * Rendert das passende Eingabefeld für einen Parameterwert.
+   * Bei "select" ein echtes Dropdown aus den definierten Optionen,
+   * sonst wie bisher ein Zahl-/Textfeld.
+   */
+  const renderField = (p: { paramId: string; type: string; options?: string[] }, val: string, onVal: (v: string) => void) => {
+    if (p.type === 'select') {
+      const opts = p.options ?? []
+      // Bereits gespeicherter Wert, der (z.B. durch Altdaten) nicht in den
+      // Optionen steht, bleibt trotzdem auswählbar, damit nichts verloren geht.
+      const extra = val && !opts.includes(val) ? [val] : []
+      return (
+        <select value={val} onChange={(e) => onVal(e.target.value)}>
+          <option value="">— bitte wählen —</option>
+          {[...extra, ...opts].map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      )
+    }
+    return (
+      <input
+        type={inputType(p.type)}
+        inputMode={inputMode(p.type) as 'decimal' | 'text'}
+        placeholder="Wert"
+        value={val}
+        onChange={(e) => onVal(e.target.value)}
+      />
+    )
+  }
+
   return (
     <div className="flex flex-col gap-3">
       {/* Satzanzahl */}
@@ -88,13 +119,7 @@ export function SetEditor({ we, onChange }: Props) {
 
               {!isPerSet || count <= 1 ? (
                 // Ein gemeinsames Feld für alle Sätze
-                <input
-                  type={inputType(p.type)}
-                  inputMode={inputMode(p.type) as 'decimal' | 'text'}
-                  placeholder="Wert"
-                  value={p.value}
-                  onChange={(e) => onChange(setCommonValue(we, p.paramId, e.target.value))}
-                />
+                renderField(p, p.value, (v) => onChange(setCommonValue(we, p.paramId, v)))
               ) : (
                 // Ein Feld pro Satz
                 <div className="flex flex-col gap-1.5">
@@ -103,13 +128,7 @@ export function SetEditor({ we, onChange }: Props) {
                     return (
                       <div key={s.id} className="flex items-center gap-2">
                         <span className="text-xs text-text-muted w-12 shrink-0">Satz {i + 1}</span>
-                        <input
-                          type={inputType(p.type)}
-                          inputMode={inputMode(p.type) as 'decimal' | 'text'}
-                          placeholder="Wert"
-                          value={v?.value ?? ''}
-                          onChange={(e) => onChange(setPerSetValue(we, i, p.paramId, e.target.value))}
-                        />
+                        {renderField(p, v?.value ?? '', (val) => onChange(setPerSetValue(we, i, p.paramId, val)))}
                       </div>
                     )
                   })}
